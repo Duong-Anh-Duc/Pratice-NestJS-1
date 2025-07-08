@@ -1,15 +1,18 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare } from 'bcrypt';
 import { sign } from 'jsonwebtoken';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { IUserResponse } from './types/userResponse.interface';
 import { UserEntity } from './user.entity';
 @Injectable()
 export class UserService {
-  constructor(@InjectRepository(UserEntity) private readonly userRepository : Repository<UserEntity>){
+  constructor(@InjectRepository(UserEntity) private readonly userRepository : Repository<UserEntity>, 
+private readonly configService : ConfigService){
 
   }
   async createUser(createUserDto : CreateUserDto) : Promise<IUserResponse>{ 
@@ -27,13 +30,27 @@ export class UserService {
     if(!user){
       throw new HttpException('Sai tài khoản hoặc mật khẩu!', HttpStatus.UNAUTHORIZED)
     }
-    console.log(user.password, loginUserDto.password)
     const checkPassword = await compare(loginUserDto.password,user.password!)
     if(!checkPassword){
         throw new HttpException('Sai tài khoản hoặc mật khẩu!', HttpStatus.UNAUTHORIZED)
     }
     delete user.password
     return user
+  }
+  async updateUser(userId : number, updateUserDto : UpdateUserDto){
+    const user = await this.findUserById(userId)
+    if(!user){
+      throw new HttpException('Id của người dùng không hợp lệ !', HttpStatus.BAD_REQUEST)
+    }
+    return this.userRepository.update({id : userId}, updateUserDto) 
+  }
+  async findUserById(id : number) : Promise<UserEntity>{
+    const user = await this.userRepository.findOneBy({id : id})
+    if(!user){
+      throw new HttpException(`Không tìm thấy người dùng có id là ${id}`, HttpStatus.NOT_FOUND)
+    }
+    return user
+
   }
   generateToken(user : UserEntity) : string{
     return sign({
@@ -42,7 +59,7 @@ export class UserService {
       username : user.username,
       email : user.email
   },
-  process.env.JWT_SECRET || 'SECRET123456',
+  this.configService.get<string>('JWT_SECRET') || 'SECRET123456',
 )
   }
   generateUserResponse(user : UserEntity) : IUserResponse{

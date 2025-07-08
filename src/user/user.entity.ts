@@ -1,5 +1,7 @@
 import * as bcrypt from 'bcrypt';
-import { BeforeInsert, BeforeUpdate, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Exclude } from 'class-transformer';
+import { BeforeInsert, BeforeUpdate, Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { ArticleEntity } from '../article/article.entity';
 @Entity({name : 'users'})
 export class UserEntity {
     @PrimaryGeneratedColumn('increment')
@@ -18,7 +20,15 @@ export class UserEntity {
     image : string;
 
     @Column()
+    @Exclude()
     password? : string
+
+    @OneToMany(() => ArticleEntity, (article) => (article.author))
+    articles : ArticleEntity[]
+
+    @ManyToMany(() => ArticleEntity)
+    @JoinTable()
+    favorites: ArticleEntity[]
 
     @BeforeInsert()
     @BeforeUpdate()
