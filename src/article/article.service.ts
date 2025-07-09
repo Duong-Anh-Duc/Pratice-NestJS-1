@@ -65,14 +65,30 @@ export class ArticleService {
     }
     return article
   }
-  async addToFavoriteArticle(currentUserId : number, slug : string){
+  async addToFavoriteArticle(currentUserId : number, slug : string):Promise<IArticleResponse>{
     const user = await this.userRepository.findOne({
       where : {
        id : currentUserId
       }
-    })
-    console.log(user)
+    ,
+  relations : ['favorites', 'favorites.author', 'articles', 'articles.author']
+},)
+  if(!user){
+    throw new HttpException(`Không tìm thấy người dùng với id ${currentUserId}`, HttpStatus.NOT_FOUND)
   }
+  const currentAricle = await this.findArticleBySlug(slug)
+  if (!currentAricle) {
+    throw new HttpException('Không tìm thấy bài đăng tương ứng!', HttpStatus.NOT_FOUND)
+  }
+  const isChecked = user?.favorites.some((article) => article.slug === currentAricle.slug)
+  if(!isChecked){
+    user?.favorites.push(currentAricle)
+    currentAricle.favoritesCount = currentAricle.favoritesCount + 1
+    await this.userRepository.save(user as UserEntity)
+    await this.articleRepository.save(currentAricle)
+  }
+  return this.generateArticleResponse(currentAricle)
+}
   async updateArticle(slug : string, currentUserId : number, updateArticleDto : UpdateArticleDto){
     const article = await this.findArticleBySlug(slug)
     if(!article){
@@ -102,9 +118,38 @@ export class ArticleService {
       slug : slug,
       
     },
-    relations : ['author']
+    relations : ['author', 'author.favorites', 'author.articles']
   })
   }
+  async deleteFromFavoriteArticle(currentUserId : number, slug : string) : Promise<IArticleResponse>{
+    const user = await this.userRepository.findOne({
+      where : {
+       id : currentUserId
+      }
+    ,  relations : ['favorites', 'favorites.author', 'articles', 'articles.author']
+},)
+    if(!user){
+      throw new HttpException(`Không tìm thấy người dùng với id ${currentUserId}`, HttpStatus.NOT_FOUND)
+    }
+    const currentAricle = await this.findArticleBySlug(slug)
+    if (!currentAricle) {
+      throw new HttpException('Không tìm thấy bài đăng tương ứng!', HttpStatus.NOT_FOUND)
+    }
+    const isChecked = user?.favorites.some((article) => article.slug === currentAricle.slug)
+    if(isChecked){
+      user.favorites = user.favorites.filter((article) => article.slug !== currentAricle.slug)    
+      currentAricle.favoritesCount = currentAricle.favoritesCount - 1 
+      await this.userRepository.save(user as UserEntity)
+      await this.articleRepository.save(currentAricle)  
+    }
+    return this.generateArticleResponse(currentAricle) 
+  }
+
+
+  
+
+  // Generate a unique slug for the article
+  // The slug is a URL-friendly version of the title with a unique identifier
   generateSlug(title : string) : string {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2)
     return `${slugify(title, {lower : true})}-${id}`

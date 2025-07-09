@@ -17,7 +17,7 @@ export class ArticleController {
   }
   @Get(':slug')
   @UseGuards(AuthGuard)
-  async getArticle(@Param('slug') slug : string) {
+  async getArticle(@Param('slug') slug : string) : Promise<IArticleResponse>{
     const article = await this.articleService.getArticle(slug)
     return this.articleService.generateArticleResponse(article)
   }
@@ -29,9 +29,10 @@ export class ArticleController {
   }
   @Post(':slug/favorite')
   @UseGuards(AuthGuard)
-  async addToFavoriteArticle(@User('id') currentUserId : number, @Param('slug') slug : string){
-      
+  async addToFavoriteArticle(@User() user : UserEntity, @Param('slug') slug : string) : Promise<IArticleResponse>{
+      return this.articleService.addToFavoriteArticle(user.id, slug)
   }
+
   @Put(':slug')
   @UseGuards(AuthGuard)
   async updateArticle(@Param('slug') slug : string, @User() user : UserEntity, @Body('article') updateArticleDto : UpdateArticleDto) : Promise<IArticleResponse>{
@@ -44,4 +45,9 @@ export class ArticleController {
   async deleteArticle(@Param('slug') slug : string, @User() user : UserEntity){
     return this.articleService.deleteArticle(slug, user.id)
   }
+  @Delete(':slug/favorite')
+  @UseGuards(AuthGuard)
+  async deleteFromFavoriteArticle(@User() user : UserEntity, @Param('slug') slug : string) : Promise<IArticleResponse>{
+    return this.articleService.deleteFromFavoriteArticle(user.id, slug)
+}
 }

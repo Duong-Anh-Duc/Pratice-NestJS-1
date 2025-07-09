@@ -25,11 +25,15 @@ export class ArticleEntity {
     createdAt : Date
 
 
+
     @Column({type : 'timestamp', default : () => 'CURRENT_TIMESTAMP'})
     updatedAt : Date
 
     @Column({default : 0})
     favoritesCount : number;
+
+    @Column()
+    authorId : number
 
     @ManyToOne(() => UserEntity, (user) => (user.articles))
     author : UserEntity
